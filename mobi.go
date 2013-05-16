@@ -138,10 +138,10 @@ func main() {
 	fmt.Printf("%v %v\n", hd.Sections[0], hd.Sections[181])
 	var pd Mobi8Header
 	file, err := os.Open("file.mobi")
-	_, err = GetStruct(file, &pd, 300, 100)
-	fmt.Println(err, pd)
+	rd, err := GetStruct(file, &pd, 300, int64(hd.Sections[0].DataOffset))
+	fmt.Println(err, rd, pd)
+	fmt.Println(pd.TextEncoding, pd.UniqueID)
 }
-
 
 //GetPDRecordInfoSectionList reads `count` items from `file`,
 //starting at byte `offset` and placing the result in in `ris`.
