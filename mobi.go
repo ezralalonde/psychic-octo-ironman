@@ -102,9 +102,9 @@ type Mobi8Header struct {
 	GuideIndex          uint32   //260
 }
 
-func GetMobi8Header(file *os.File, hd *Mobi8Header) (rd int, err error) {
-	b := make([]byte, 300)
-	rd, err = file.ReadAt(b, 0)
+func GetStruct(file *os.File, hd interface{}, length int, offset int64) (rd int, err error) {
+	b := make([]byte, length)
+	rd, err = file.ReadAt(b, offset)
 	if err != nil {
 		return
 	}
@@ -138,24 +138,10 @@ func main() {
 	fmt.Printf("%v %v\n", hd.Sections[0], hd.Sections[181])
 	var pd Mobi8Header
 	file, err := os.Open("file.mobi")
-	fmt.Println(err, pd)
-	_, err = GetMobi8Header(file, &pd)
+	_, err = GetStruct(file, &pd, 300, 100)
 	fmt.Println(err, pd)
 }
 
-//GetPDRecordInfoSection reads the Record Info Section of `file` into
-//`section`, starting data at offset `index`.
-//Returns the number of bytes read and any error.
-func GetPDRecordInfoSection(file *os.File, section *PDRecordInfoSection, index int) (rd int, err error) {
-	b := make([]byte, 8)
-	rd, err = file.ReadAt(b, int64(index))
-	if err != nil {
-		return
-	}
-	buf := bytes.NewBuffer(b)
-	err = binary.Read(buf, binary.BigEndian, section)
-	return
-}
 
 //GetPDRecordInfoSectionList reads `count` items from `file`,
 //starting at byte `offset` and placing the result in in `ris`.
@@ -163,22 +149,9 @@ func GetPDRecordInfoSection(file *os.File, section *PDRecordInfoSection, index i
 func GetPDRecordInfoSectionList(file *os.File, ris *[]PDRecordInfoSection, count int, start int) (ii int, err error) {
 	for ii = 0; ii < count; ii++ {
 		var section PDRecordInfoSection
-		_, err = GetPDRecordInfoSection(file, &section, start+ii*8)
+		_, err = GetStruct(file, &section, 8, int64(start+ii*8))
 		*ris = append(*ris, section)
 	}
-	return
-}
-
-//GetPDFormat reads the PDFormat from the first 78 bytes of `file`.
-//Returns the number of bytes read, and any error.
-func GetPDFormat(file *os.File, pd *PDFormat) (rd int, err error) {
-	b := make([]byte, 78)
-	rd, err = file.ReadAt(b, int64(rd))
-	if err != nil {
-		return
-	}
-	buf := bytes.NewBuffer(b)
-	err = binary.Read(buf, binary.BigEndian, pd)
 	return
 }
 
@@ -192,7 +165,7 @@ func GetFileHeader(path string) (hd FileHeader, err error) {
 		return
 	}
 
-	start, err = GetPDFormat(file, &hd.Format)
+	start, err = GetStruct(file, &hd.Format, 78, 0)
 	if err != nil {
 		return
 	}
