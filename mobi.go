@@ -31,13 +31,13 @@ type PDRecordInfoSection struct {
 	UniqueID   [3]byte //5-8
 }
 
-type Header struct {
+type FileHeader struct {
 	Format   PDFormat
 	Sections []PDRecordInfoSection
 }
 
 func main() {
-	hd, err := GetHeader("file.mobi")
+	hd, err := GetFileHeader("file.mobi")
 	check(err)
 	fmt.Printf("%#v\n", hd.Format)
 	fmt.Printf("%v %v\n", hd.Sections[0], hd.Sections[181])
@@ -82,9 +82,9 @@ func GetPDFormat(file *os.File, pd *PDFormat) (rd int, err error) {
 	return
 }
 
-//GetHeader reads the header information from the file at path `path`.
-//Returns the Header as read, and any error.
-func GetHeader(path string) (hd Header, err error) {
+//GetFileHeader reads the header information from the file at path `path`.
+//Returns the FileHeader as read, and any error.
+func GetFileHeader(path string) (hd FileHeader, err error) {
 	file, err := os.Open(path)
 	defer file.Close()
 	start := 0
