@@ -127,9 +127,9 @@ type ExthRecordInfo struct {
 type ExthRecordData []byte
 
 type FileHeader struct {
-	Format   PDFormat
-	Sections []PDRecordInfoSection
-	MobiHeader  Mobi8Header
+	Format     PDFormat
+	Sections   []PDRecordInfoSection
+	MobiHeader Mobi8Header
 }
 
 func main() {
