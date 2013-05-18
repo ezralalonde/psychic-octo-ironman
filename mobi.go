@@ -142,12 +142,10 @@ func main() {
 //GetPDRecordInfoSectionList reads `count` items from `file`,
 //starting at byte `offset` and placing the result in in `ris`.
 //Returns the number of records read, and any error.
-func GetPDRecordInfoSectionList(file *os.File, ris *[]PDRecordInfoSection, count int, start int) (total int, err error) {
-	rd := 0
-	for ii := 0; ii < count; ii++ {
+func GetPDRecordInfoSectionList(file *os.File, ris *[]PDRecordInfoSection, count int, start int) (ii int, err error) {
+	for ii = 0; ii < count; ii++ {
 		var section PDRecordInfoSection
-		rd, err = GetStruct(file, &section, 8, int64(start+ii*8))
-		total += rd
+		_, err = GetStruct(file, &section, 8, int64(start+ii*8))
 		if err != nil {
 			return
 		}
@@ -186,7 +184,7 @@ func GetFileHeader(path string) (hd FileHeader, err error) {
 	return
 }
 
-//check helps panic when there's an error.
+//check prints when there's an error.
 func check(err error) {
 	if err != nil {
 		fmt.Println(err)
