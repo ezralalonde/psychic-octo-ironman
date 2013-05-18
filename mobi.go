@@ -260,7 +260,8 @@ func GetFileHeader(path string) (hd FileHeader, err error) {
 }
 
 //GetExthData reads exth data at index `offset` in `file`, and copies
-//the contents into into `ex`.
+//the contents into into `ex`. Offset is relative to the start of the file,
+//not the start of the record.
 //Return the total number of bytes read and the error.
 func GetExthData(file *os.File, ex *ExthData, offset int64) (total int, err error) {
 	read, err := GetStruct(file, &ex.Header, 12, offset)
