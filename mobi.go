@@ -130,6 +130,22 @@ type FileHeader struct {
 	Format     PDFormat
 	Sections   []PDRecordInfoSection
 	MobiHeader Mobi8Header
+	Fcis       FcisRecord
+}
+
+type FcisRecord struct {
+	Identifier [4]byte //starts at 0, to 4 "FCIS"
+	Skip1      uint32  //4     20
+	Skip2      uint32  //8     16
+	Skip3      uint32  //12    1
+	Skip4      uint32  //16    0
+	TextLength uint32  //20    Same as PDHeader
+	Skip5      uint32  //24    0
+	Skip6      uint32  //28    32
+	Skip7      uint32  //32    8
+	Skip8      uint16  //36    1
+	Skip9      uint16  //38    1
+	Skip10     uint32  //40-44 0
 }
 
 func main() {
@@ -137,6 +153,8 @@ func main() {
 	check(err)
 	fmt.Printf("%#v\n", hd.Format)
 	fmt.Printf("%#v %#v\n", hd.Sections[0], hd.Sections[181])
+	fmt.Printf("%#v\n", hd.MobiHeader)
+	fmt.Printf("%#v\n", hd.Fcis)
 }
 
 //GetPDRecordInfoSectionList reads `count` items from `file`,
@@ -181,6 +199,13 @@ func GetFileHeader(path string) (hd FileHeader, err error) {
 
 	a, err = GetStruct(file, &hd.MobiHeader, 262, int64(hd.Sections[0].DataOffset))
 	fmt.Println(a, err)
+
+    if hd.MobiHeader.FcisCount > 0 {
+        offset := int64(hd.Sections[hd.MobiHeader.FcisOffset].DataOffset)
+        a, err = GetStruct(file, &hd.Fcis, 44, offset)
+        fmt.Println("FCIS", a, err)
+    }
+
 	return
 }
 
