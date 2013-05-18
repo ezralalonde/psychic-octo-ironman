@@ -94,12 +94,8 @@ type Mobi8Header struct {
 	SrcsOffset          uint32   //224
 	SrcsCount           uint32   //228
 	Skip6               [8]byte  //232
-	TrailDataFlags      uint16   //240
-	NcxIndex            uint32   //242
-	FragmentIndex       uint32   //246
-	SkeletonIndex       uint32   //250
-	DatpOffset          uint32   //254
-	GuideIndex          uint32   //258-262
+	TrailDataFlags      uint32   //240
+	NcxIndex            uint32   //244-248
 }
 
 func GetStruct(file *os.File, hd interface{}, length int, offset int64) (rd int, err error) {
@@ -114,17 +110,27 @@ func GetStruct(file *os.File, hd interface{}, length int, offset int64) (rd int,
 }
 
 type ExthHeader struct {
-	Identifier   uint32 //starts at byte 0
-	HeaderLength uint32 //4
-	RecordCount  uint32 //8-12
+	Identifier  [4]byte //starts at byte 0
+	Length      uint32  //4
+	RecordCount uint32  //8-12
+}
+
+type ExthData struct {
+	Header  ExthHeader
+	Records []ExthRecord
 }
 
 type ExthRecordInfo struct {
-	RecordType   uint32 //starts at 0
-	RecordLength uint32 //4-8
+	Type   uint32 //starts at 0
+	Length uint32 //4-8
 }
 
 type ExthRecordData []byte
+
+type ExthRecord struct {
+	Info ExthRecordInfo
+	Data ExthRecordData
+}
 
 type FileHeader struct {
 	Format     PDFormat
@@ -133,6 +139,7 @@ type FileHeader struct {
 	Fcis       FcisRecord
 	Flis       FlisRecord
 	Eof        EofRecord
+	Exth       ExthData
 }
 
 type FlisRecord struct {
@@ -180,6 +187,10 @@ func main() {
 	fmt.Printf("%#v\n", hd.Fcis)
 	fmt.Printf("%#v\n", hd.Flis)
 	fmt.Printf("%#v\n", hd.Eof)
+	fmt.Printf("%#v\n", hd.Exth.Header)
+	fmt.Printf("%#v\n", hd.Exth.Header.Identifier)
+	fmt.Printf("%#v %#v\n", string(hd.Exth.Records[0].Data), string(hd.Exth.Records[16].Data))
+	fmt.Printf("%#v\n", string(hd.Exth.Records[len(hd.Exth.Records)-1].Data))
 }
 
 //GetPDRecordInfoSectionList reads `count` items from `file`,
@@ -216,31 +227,53 @@ func GetFileHeader(path string) (hd FileHeader, err error) {
 	rdr := flate.NewReader(file)
 	defer rdr.Close()
 
-	a, err := GetPDRecordInfoSectionList(file, &hd.Sections, int(hd.Format.SectionCount), start)
-	fmt.Println(a)
+	bytesRead, err := GetPDRecordInfoSectionList(file, &hd.Sections, int(hd.Format.SectionCount), start)
+	fmt.Println(bytesRead)
 	if err != nil {
 		return
 	}
+	offset := int64(hd.Sections[0].DataOffset)
+	bytesRead, err = GetStruct(file, &hd.MobiHeader, 248, offset)
+	offset += int64(bytesRead)
 
-	a, err = GetStruct(file, &hd.MobiHeader, 262, int64(hd.Sections[0].DataOffset))
-	fmt.Println(a, err)
+	if hd.MobiHeader.ExthFlags&64 == 64 {
+		GetExthData(file, &hd.Exth, offset)
+	}
 
 	if hd.MobiHeader.FcisCount > 0 {
 		offset := int64(hd.Sections[hd.MobiHeader.FcisOffset].DataOffset)
-		a, err = GetStruct(file, &hd.Fcis, 44, offset)
-		fmt.Println("FCIS", a, err)
+		bytesRead, err = GetStruct(file, &hd.Fcis, 44, offset)
+		fmt.Println("FCIS", bytesRead, err)
 	}
 
 	if hd.MobiHeader.FlisCount > 0 {
 		offset := int64(hd.Sections[hd.MobiHeader.FlisOffset].DataOffset)
-		a, err = GetStruct(file, &hd.Flis, 36, offset)
-		fmt.Println("FLIS", a, err)
+		bytesRead, err = GetStruct(file, &hd.Flis, 36, offset)
+		fmt.Println("FLIS", bytesRead, err)
 	}
 
-	offset := int64(hd.Sections[len(hd.Sections)-1].DataOffset)
-	a, err = GetStruct(file, &hd.Eof, 4, offset)
-	fmt.Println("EOF", a, err)
+	offset = int64(hd.Sections[len(hd.Sections)-1].DataOffset)
+	bytesRead, err = GetStruct(file, &hd.Eof, 4, offset)
+	fmt.Println("EOF", bytesRead, err)
 
+	return
+}
+
+//GetExthData reads exth data at index `offset` in `file`, and copies
+//the contents into into `ex`.
+//Return the total number of bytes read and the error.
+func GetExthData(file *os.File, ex *ExthData, offset int64) (total int, err error) {
+	read, err := GetStruct(file, &ex.Header, 12, offset)
+	total += read
+	for ii := uint32(0); ii < ex.Header.RecordCount; ii++ {
+		var record ExthRecord
+		read, err = GetStruct(file, &record.Info, 8, offset+int64(total))
+		total += read
+		record.Data = make([]byte, int(record.Info.Length-8))
+		read, err = GetStruct(file, &record.Data, len(record.Data), offset+int64(total))
+		total += read
+		ex.Records = append(ex.Records, record)
+	}
 	return
 }
 
