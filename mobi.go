@@ -184,9 +184,9 @@ func GetFileHeader(path string) (hd FileHeader, err error) {
 	return
 }
 
-//check prints when there's an error.
+//check panics when there's an error.
 func check(err error) {
 	if err != nil {
-		fmt.Println(err)
+		panic(err)
 	}
 }
