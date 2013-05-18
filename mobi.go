@@ -95,11 +95,11 @@ type Mobi8Header struct {
 	SrcsCount           uint32   //228
 	Skip6               [8]byte  //232
 	TrailDataFlags      uint16   //240
-	NcxIndex            uint32   //244
-	FragmentIndex       uint32   //248
-	SkeletonIndex       uint32   //252
-	DatpOffset          uint32   //256
-	GuideIndex          uint32   //260
+	NcxIndex            uint32   //242
+	FragmentIndex       uint32   //246
+	SkeletonIndex       uint32   //250
+	DatpOffset          uint32   //254
+	GuideIndex          uint32   //258-262
 }
 
 func GetStruct(file *os.File, hd interface{}, length int, offset int64) (rd int, err error) {
@@ -129,27 +129,28 @@ type ExthRecordData []byte
 type FileHeader struct {
 	Format   PDFormat
 	Sections []PDRecordInfoSection
+	MobiHeader  Mobi8Header
 }
 
 func main() {
 	hd, err := GetFileHeader("file.mobi")
 	check(err)
 	fmt.Printf("%#v\n", hd.Format)
-	fmt.Printf("%v %v\n", hd.Sections[0], hd.Sections[181])
-	var pd Mobi8Header
-	file, err := os.Open("file.mobi")
-	rd, err := GetStruct(file, &pd, 300, int64(hd.Sections[0].DataOffset))
-	fmt.Println(err, rd, pd)
-	fmt.Println(pd.TextEncoding, pd.UniqueID)
+	fmt.Printf("%#v %#v\n", hd.Sections[0], hd.Sections[181])
 }
 
 //GetPDRecordInfoSectionList reads `count` items from `file`,
 //starting at byte `offset` and placing the result in in `ris`.
 //Returns the number of records read, and any error.
-func GetPDRecordInfoSectionList(file *os.File, ris *[]PDRecordInfoSection, count int, start int) (ii int, err error) {
-	for ii = 0; ii < count; ii++ {
+func GetPDRecordInfoSectionList(file *os.File, ris *[]PDRecordInfoSection, count int, start int) (total int, err error) {
+	rd := 0
+	for ii := 0; ii < count; ii++ {
 		var section PDRecordInfoSection
-		_, err = GetStruct(file, &section, 8, int64(start+ii*8))
+		rd, err = GetStruct(file, &section, 8, int64(start+ii*8))
+		total += rd
+		if err != nil {
+			return
+		}
 		*ris = append(*ris, section)
 	}
 	return
@@ -166,6 +167,7 @@ func GetFileHeader(path string) (hd FileHeader, err error) {
 	}
 
 	start, err = GetStruct(file, &hd.Format, 78, 0)
+	fmt.Println(start)
 	if err != nil {
 		return
 	}
@@ -173,14 +175,20 @@ func GetFileHeader(path string) (hd FileHeader, err error) {
 	rdr := flate.NewReader(file)
 	defer rdr.Close()
 
-	_, err = GetPDRecordInfoSectionList(file, &hd.Sections, int(hd.Format.SectionCount), start)
-	fmt.Println(start)
+	a, err := GetPDRecordInfoSectionList(file, &hd.Sections, int(hd.Format.SectionCount), start)
+	fmt.Println(a)
+	if err != nil {
+		return
+	}
+
+	a, err = GetStruct(file, &hd.MobiHeader, 262, int64(hd.Sections[0].DataOffset))
+	fmt.Println(a, err)
 	return
 }
 
 //check helps panic when there's an error.
 func check(err error) {
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
 	}
 }
