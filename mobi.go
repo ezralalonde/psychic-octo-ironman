@@ -132,6 +132,7 @@ type FileHeader struct {
 	MobiHeader Mobi8Header
 	Fcis       FcisRecord
 	Flis       FlisRecord
+	Eof        EofRecord
 }
 
 type FlisRecord struct {
@@ -163,6 +164,13 @@ type FcisRecord struct {
 	Skip10     uint32  //40-44 0
 }
 
+type EofRecord struct {
+	Skip1 uint8 //starts at 0, to 1  233
+	Skip2 uint8 //1                  142
+	Skip3 uint8 //2                   13
+	Skip4 uint8 //3-4                 10
+}
+
 func main() {
 	hd, err := GetFileHeader("file.mobi")
 	check(err)
@@ -171,6 +179,7 @@ func main() {
 	fmt.Printf("%#v\n", hd.MobiHeader)
 	fmt.Printf("%#v\n", hd.Fcis)
 	fmt.Printf("%#v\n", hd.Flis)
+	fmt.Printf("%#v\n", hd.Eof)
 }
 
 //GetPDRecordInfoSectionList reads `count` items from `file`,
@@ -224,9 +233,13 @@ func GetFileHeader(path string) (hd FileHeader, err error) {
 
 	if hd.MobiHeader.FlisCount > 0 {
 		offset := int64(hd.Sections[hd.MobiHeader.FlisOffset].DataOffset)
-		a, err = GetStruct(file, &hd.Flis, 44, offset)
-		fmt.Println("FCIS", a, err)
+		a, err = GetStruct(file, &hd.Flis, 36, offset)
+		fmt.Println("FLIS", a, err)
 	}
+
+	offset := int64(hd.Sections[len(hd.Sections)-1].DataOffset)
+	a, err = GetStruct(file, &hd.Eof, 4, offset)
+	fmt.Println("EOF", a, err)
 
 	return
 }
