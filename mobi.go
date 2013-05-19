@@ -141,7 +141,10 @@ type FileHeader struct {
 	Flis       FlisRecord
 	Eof        EofRecord
 	Exth       ExthData
+	Contents   []ContentRecord
 }
+
+type ContentRecord []byte
 
 type FlisRecord struct {
 	Identifier [4]byte //starts at 0, "FLIS"
@@ -192,6 +195,12 @@ func main() {
 	fmt.Printf("%#v\n", hd.Exth.Header.Identifier)
 	fmt.Printf("%#v %#v\n", string(hd.Exth.Records[0].Data), string(hd.Exth.Records[16].Data))
 	fmt.Printf("%#v\n", string(hd.Exth.Records[len(hd.Exth.Records)-1].Data))
+	fmt.Printf("%#v\n", hd.MobiHeader.FirstContentNumber)
+	fmt.Printf("%#v\n", hd.MobiHeader.LastContentNumber)
+	fmt.Printf("%#v\n", len(hd.Contents))
+	fmt.Printf("%#v\n", hd.Contents[0][0:10])
+	fmt.Printf("%#v\n", len(hd.Contents[0]))
+	fmt.Printf("%#v\n", len(hd.Contents[len(hd.Contents)-1]))
 }
 
 //GetPDRecordInfoSectionList reads `count` items from `file`,
@@ -237,6 +246,11 @@ func GetFileHeader(path string) (hd FileHeader, err error) {
 	bytesRead, err = GetStruct(file, &hd.MobiHeader, 248, offset)
 	offset += int64(bytesRead)
 
+	_, err = GetContents(file, &hd.Contents, hd.Sections, hd.MobiHeader.FirstContentNumber, hd.MobiHeader.LastContentNumber)
+	if err != nil {
+		return
+	}
+
 	if hd.MobiHeader.ExthFlags&64 == 64 {
 		GetExthData(file, &hd.Exth, offset)
 	}
@@ -257,6 +271,25 @@ func GetFileHeader(path string) (hd FileHeader, err error) {
 	bytesRead, err = GetStruct(file, &hd.Eof, 4, offset)
 	fmt.Println("EOF", bytesRead, err)
 
+	return
+}
+
+func GetContents(file *os.File, crs *[]ContentRecord, sections []PDRecordInfoSection, first, last uint16) (count int, err error) {
+	count = 0
+	for ii := first; ii <= last; ii++ {
+		offset := int64(sections[ii].DataOffset)
+		length := int(sections[ii+1].DataOffset - uint32(offset))
+		cr := make(ContentRecord, length)
+		bytesRead, err := GetStruct(file, &cr, length, offset)
+		if bytesRead != length {
+			// do something?
+		}
+		if err != nil {
+			// do something?
+		}
+		*crs = append(*crs, cr)
+		count++
+	}
 	return
 }
 
