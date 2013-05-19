@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"compress/flate"
 	"encoding/binary"
 	"fmt"
 	"os"
@@ -134,17 +133,55 @@ type ExthRecord struct {
 }
 
 type FileHeader struct {
-	Format      PDFormat
-	Sections    []PDRecordInfoSection
-	MobiHeader  Mobi8Header
-	Fcis        FcisRecord
-	Flis        FlisRecord
-	Eof         EofRecord
-	Exth        ExthData
-	RawContents []ContentRecord
+	Format            PDFormat
+	Sections          []PDRecordInfoSection
+	MobiHeader        Mobi8Header
+	Fcis              FcisRecord
+	Flis              FlisRecord
+	Eof               EofRecord
+	Exth              ExthData
+	RawContents       []ContentRecord
+	DecryptedContents []ContentRecord
 }
 
 type ContentRecord []byte
+
+func (cr *ContentRecord) Decode(in []byte) (rd int, err error) {
+	for p := 0; p < len(in); {
+		c := in[p]
+		p += 1
+		if c >= 1 && c <= 8 {
+			for ii := 0; ii < int(c); ii++ {
+				*cr = append(*cr, in[p])
+				p += 1
+			}
+		} else if c < 128 {
+			*cr = append(*cr, c)
+		} else if c >= 192 {
+			*cr = append(*cr, byte(' '))
+			*cr = append(*cr, c^128)
+		} else {
+			if p < len(in) {
+				d := uint16(c)<<8 + uint16(in[p])
+				p += 1
+				m := uint16(d>>3) & 0x7ff
+				n := uint16(d&7) + 3
+				length := len(*cr)
+				if m > n {
+					for ii := uint16(0); ii < n; ii++ {
+						one := []byte(*cr)[length-int(m-ii)]
+						*cr = append(*cr, one)
+					}
+				} else {
+					for ii := 0; ii < int(n); ii++ {
+						*cr = append(*cr, []byte(*cr)[length-int(m)])
+					}
+				}
+			}
+		}
+	}
+	return
+}
 
 type FlisRecord struct {
 	Identifier [4]byte //starts at 0, "FLIS"
@@ -198,9 +235,9 @@ func main() {
 	fmt.Printf("%#v\n", hd.MobiHeader.FirstContentNumber)
 	fmt.Printf("%#v\n", hd.MobiHeader.LastContentNumber)
 	fmt.Printf("%#v\n", len(hd.RawContents))
-	fmt.Printf("%#v\n", string(hd.RawContents[0][0:10]))
 	fmt.Printf("%#v\n", len(hd.RawContents[0]))
 	fmt.Printf("%#v\n", len(hd.RawContents[len(hd.RawContents)-1]))
+	fmt.Printf("%#v\n", string(hd.DecryptedContents[0]))
 }
 
 //GetPDRecordInfoSectionList reads `count` items from `file`,
@@ -234,9 +271,6 @@ func GetFileHeader(path string) (hd FileHeader, err error) {
 		return
 	}
 
-	rdr := flate.NewReader(file)
-	defer rdr.Close()
-
 	bytesRead, err := GetPDRecordInfoSectionList(file, &hd.Sections, int(hd.Format.SectionCount), start)
 	fmt.Println(bytesRead)
 	if err != nil {
@@ -251,8 +285,14 @@ func GetFileHeader(path string) (hd FileHeader, err error) {
 		return
 	}
 
+	if length := len(hd.RawContents); length > 0 {
+		var out ContentRecord
+		out.Decode(hd.RawContents[0])
+        hd.DecryptedContents = append(hd.DecryptedContents, out)
+	}
+
 	if hd.MobiHeader.ExthFlags&64 == 64 {
-		GetExthData(file, &hd.Exth, offset)
+		_, err = GetExthData(file, &hd.Exth, offset)
 	}
 
 	if hd.MobiHeader.FcisCount > 0 {
