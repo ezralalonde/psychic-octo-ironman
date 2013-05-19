@@ -134,14 +134,14 @@ type ExthRecord struct {
 }
 
 type FileHeader struct {
-	Format     PDFormat
-	Sections   []PDRecordInfoSection
-	MobiHeader Mobi8Header
-	Fcis       FcisRecord
-	Flis       FlisRecord
-	Eof        EofRecord
-	Exth       ExthData
-	Contents   []ContentRecord
+	Format      PDFormat
+	Sections    []PDRecordInfoSection
+	MobiHeader  Mobi8Header
+	Fcis        FcisRecord
+	Flis        FlisRecord
+	Eof         EofRecord
+	Exth        ExthData
+	RawContents []ContentRecord
 }
 
 type ContentRecord []byte
@@ -197,10 +197,10 @@ func main() {
 	fmt.Printf("%#v\n", string(hd.Exth.Records[len(hd.Exth.Records)-1].Data))
 	fmt.Printf("%#v\n", hd.MobiHeader.FirstContentNumber)
 	fmt.Printf("%#v\n", hd.MobiHeader.LastContentNumber)
-	fmt.Printf("%#v\n", len(hd.Contents))
-	fmt.Printf("%#v\n", hd.Contents[0][0:10])
-	fmt.Printf("%#v\n", len(hd.Contents[0]))
-	fmt.Printf("%#v\n", len(hd.Contents[len(hd.Contents)-1]))
+	fmt.Printf("%#v\n", len(hd.RawContents))
+	fmt.Printf("%#v\n", string(hd.RawContents[0][0:10]))
+	fmt.Printf("%#v\n", len(hd.RawContents[0]))
+	fmt.Printf("%#v\n", len(hd.RawContents[len(hd.RawContents)-1]))
 }
 
 //GetPDRecordInfoSectionList reads `count` items from `file`,
@@ -246,7 +246,7 @@ func GetFileHeader(path string) (hd FileHeader, err error) {
 	bytesRead, err = GetStruct(file, &hd.MobiHeader, 248, offset)
 	offset += int64(bytesRead)
 
-	_, err = GetContents(file, &hd.Contents, hd.Sections, hd.MobiHeader.FirstContentNumber, hd.MobiHeader.LastContentNumber)
+	_, err = GetContents(file, &hd.RawContents, hd.Sections, hd.MobiHeader.FirstContentNumber, hd.MobiHeader.LastContentNumber)
 	if err != nil {
 		return
 	}
@@ -274,6 +274,9 @@ func GetFileHeader(path string) (hd FileHeader, err error) {
 	return
 }
 
+//GetContents reads contents of `file` into `crs`, with record bounds being
+//the difference off the DataOffsets in `sections`[first : last + 1]
+//Returns the number of content records read, and the error.
 func GetContents(file *os.File, crs *[]ContentRecord, sections []PDRecordInfoSection, first, last uint16) (count int, err error) {
 	count = 0
 	for ii := first; ii <= last; ii++ {
