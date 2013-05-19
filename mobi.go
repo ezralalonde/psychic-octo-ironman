@@ -84,7 +84,8 @@ type Mobi8Header struct {
 	DrmSize             uint32   //176
 	DrmFlags            uint32   //180
 	Skip4               [8]byte  //184
-	FirstContentNumber  uint32   //192
+	FirstContentNumber  uint16   //192
+	LastContentNumber   uint16   //194
 	FdstFlowCount       uint32   //196
 	FcisOffset          uint32   //200
 	FcisCount           uint32   //204
