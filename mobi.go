@@ -152,8 +152,10 @@ func (cr *ContentRecord) Decode(in []byte) (rd int, err error) {
 		p += 1
 		if c >= 1 && c <= 8 {
 			for ii := 0; ii < int(c); ii++ {
-				*cr = append(*cr, in[p])
-				p += 1
+				if p < len(in) {
+					*cr = append(*cr, in[p])
+					p += 1
+				}
 			}
 		} else if c < 128 {
 			*cr = append(*cr, c)
@@ -167,14 +169,10 @@ func (cr *ContentRecord) Decode(in []byte) (rd int, err error) {
 				m := uint16(d>>3) & 0x7ff
 				n := uint16(d&7) + 3
 				length := len(*cr)
-				if m > n {
-					for ii := uint16(0); ii < n; ii++ {
+				for ii := uint16(0); ii < n; ii++ {
+					if length-int(m-ii) >= 0 && length-int(m-ii) < len(*cr) {
 						one := []byte(*cr)[length-int(m-ii)]
 						*cr = append(*cr, one)
-					}
-				} else {
-					for ii := 0; ii < int(n); ii++ {
-						*cr = append(*cr, []byte(*cr)[length-int(m)])
 					}
 				}
 			}
@@ -222,22 +220,23 @@ type EofRecord struct {
 func main() {
 	hd, err := GetFileHeader("file.mobi")
 	check(err)
-	fmt.Printf("%#v\n", hd.Format)
-	fmt.Printf("%#v %#v\n", hd.Sections[0], hd.Sections[181])
-	fmt.Printf("%#v\n", hd.MobiHeader)
-	fmt.Printf("%#v\n", hd.Fcis)
-	fmt.Printf("%#v\n", hd.Flis)
-	fmt.Printf("%#v\n", hd.Eof)
-	fmt.Printf("%#v\n", hd.Exth.Header)
-	fmt.Printf("%#v\n", hd.Exth.Header.Identifier)
-	fmt.Printf("%#v %#v\n", string(hd.Exth.Records[0].Data), string(hd.Exth.Records[16].Data))
-	fmt.Printf("%#v\n", string(hd.Exth.Records[len(hd.Exth.Records)-1].Data))
-	fmt.Printf("%#v\n", hd.MobiHeader.FirstContentNumber)
-	fmt.Printf("%#v\n", hd.MobiHeader.LastContentNumber)
-	fmt.Printf("%#v\n", len(hd.RawContents))
-	fmt.Printf("%#v\n", len(hd.RawContents[0]))
-	fmt.Printf("%#v\n", len(hd.RawContents[len(hd.RawContents)-1]))
-	fmt.Printf("%#v\n", string(hd.DecryptedContents[0]))
+//	fmt.Printf("%#v\n", hd.Format)
+//	fmt.Printf("%#v %#v\n", hd.Sections[0], hd.Sections[181])
+//	fmt.Printf("%#v\n", hd.MobiHeader)
+//	fmt.Printf("%#v\n", hd.Fcis)
+//	fmt.Printf("%#v\n", hd.Flis)
+//	fmt.Printf("%#v\n", hd.Eof)
+//	fmt.Printf("%#v\n", hd.Exth.Header)
+//	fmt.Printf("%#v\n", hd.Exth.Header.Identifier)
+//	fmt.Printf("%#v %#v\n", string(hd.Exth.Records[0].Data), string(hd.Exth.Records[16].Data))
+//	fmt.Printf("%#v\n", string(hd.Exth.Records[len(hd.Exth.Records)-1].Data))
+//	fmt.Printf("%#v\n", hd.MobiHeader.FirstContentNumber)
+//	fmt.Printf("%#v\n", hd.MobiHeader.LastContentNumber)
+//	fmt.Printf("%#v\n", len(hd.RawContents))
+//	fmt.Printf("%#v\n", len(hd.RawContents[0]))
+//	fmt.Printf("%#v\n", len(hd.RawContents[len(hd.RawContents)-1]))
+	fmt.Printf("%v\n", string(hd.DecryptedContents[125]))
+    fmt.Printf("%#v\n", len(hd.DecryptedContents[  125]))
 }
 
 //GetPDRecordInfoSectionList reads `count` items from `file`,
@@ -286,9 +285,11 @@ func GetFileHeader(path string) (hd FileHeader, err error) {
 	}
 
 	if length := len(hd.RawContents); length > 0 {
-		var out ContentRecord
-		out.Decode(hd.RawContents[0])
-		hd.DecryptedContents = append(hd.DecryptedContents, out)
+		for ii := uint16(0); ii < hd.MobiHeader.RecordCount; ii++ {
+			var out ContentRecord
+			out.Decode(hd.RawContents[ii])
+			hd.DecryptedContents = append(hd.DecryptedContents, out)
+		}
 	}
 
 	if hd.MobiHeader.ExthFlags&64 == 64 {
