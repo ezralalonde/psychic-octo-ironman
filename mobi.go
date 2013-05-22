@@ -288,7 +288,7 @@ func GetFileHeader(path string) (hd FileHeader, err error) {
 	if length := len(hd.RawContents); length > 0 {
 		var out ContentRecord
 		out.Decode(hd.RawContents[0])
-        hd.DecryptedContents = append(hd.DecryptedContents, out)
+		hd.DecryptedContents = append(hd.DecryptedContents, out)
 	}
 
 	if hd.MobiHeader.ExthFlags&64 == 64 {
