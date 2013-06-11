@@ -235,18 +235,26 @@ func main() {
 	//	fmt.Printf("%#v\n", len(hd.RawContents))
 	//	fmt.Printf("%#v\n", len(hd.RawContents[0]))
 	//	fmt.Printf("%#v\n", len(hd.RawContents[len(hd.RawContents)-1]))
-	fmt.Printf("%v\n", string(hd.DecryptedContents[125]))
-	fmt.Printf("%#v\n", len(hd.DecryptedContents[125]))
+	//fmt.Printf("%#v\n", len(hd.DecryptedContents[3]))
+	for ii := 0; ii < len(hd.DecryptedContents); ii++ {
+		fmt.Printf("%v\n", len(hd.DecryptedContents[ii]))
+	}
+	fmt.Printf("%#v\n", string(hd.DecryptedContents[2]))
 	WriteContentsToFile("./testout.html", hd.DecryptedContents)
 }
 
+//WriteContentsToFile writes the bytes in `content` to the file at `path`,
+//returning any error that should occur.
+//It must take into account the weirdness around record boundaries, and
+//trim any trailing bytes, as well as merge the 'multibyte data' that spans
+//record boundaries.
 func WriteContentsToFile(path string, content []ContentRecord) (err error) {
 	file, err := os.Create(path)
 	check(err)
 	for ii := 0; ii < len(content); ii++ {
-		file.Write(content[ii])
+		file.Write(content[ii][0 : len(content[ii])-5])
 	}
-    return
+	return
 }
 
 //GetPDRecordInfoSectionList reads `count` items from `file`,
