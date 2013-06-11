@@ -220,23 +220,33 @@ type EofRecord struct {
 func main() {
 	hd, err := GetFileHeader("file.mobi")
 	check(err)
-//	fmt.Printf("%#v\n", hd.Format)
-//	fmt.Printf("%#v %#v\n", hd.Sections[0], hd.Sections[181])
-//	fmt.Printf("%#v\n", hd.MobiHeader)
-//	fmt.Printf("%#v\n", hd.Fcis)
-//	fmt.Printf("%#v\n", hd.Flis)
-//	fmt.Printf("%#v\n", hd.Eof)
-//	fmt.Printf("%#v\n", hd.Exth.Header)
-//	fmt.Printf("%#v\n", hd.Exth.Header.Identifier)
-//	fmt.Printf("%#v %#v\n", string(hd.Exth.Records[0].Data), string(hd.Exth.Records[16].Data))
-//	fmt.Printf("%#v\n", string(hd.Exth.Records[len(hd.Exth.Records)-1].Data))
-//	fmt.Printf("%#v\n", hd.MobiHeader.FirstContentNumber)
-//	fmt.Printf("%#v\n", hd.MobiHeader.LastContentNumber)
-//	fmt.Printf("%#v\n", len(hd.RawContents))
-//	fmt.Printf("%#v\n", len(hd.RawContents[0]))
-//	fmt.Printf("%#v\n", len(hd.RawContents[len(hd.RawContents)-1]))
+	//	fmt.Printf("%#v\n", hd.Format)
+	//	fmt.Printf("%#v %#v\n", hd.Sections[0], hd.Sections[181])
+	//	fmt.Printf("%#v\n", hd.MobiHeader)
+	//	fmt.Printf("%#v\n", hd.Fcis)
+	//	fmt.Printf("%#v\n", hd.Flis)
+	//	fmt.Printf("%#v\n", hd.Eof)
+	//	fmt.Printf("%#v\n", hd.Exth.Header)
+	//	fmt.Printf("%#v\n", hd.Exth.Header.Identifier)
+	//	fmt.Printf("%#v %#v\n", string(hd.Exth.Records[0].Data), string(hd.Exth.Records[16].Data))
+	//	fmt.Printf("%#v\n", string(hd.Exth.Records[len(hd.Exth.Records)-1].Data))
+	//	fmt.Printf("%#v\n", hd.MobiHeader.FirstContentNumber)
+	//	fmt.Printf("%#v\n", hd.MobiHeader.LastContentNumber)
+	//	fmt.Printf("%#v\n", len(hd.RawContents))
+	//	fmt.Printf("%#v\n", len(hd.RawContents[0]))
+	//	fmt.Printf("%#v\n", len(hd.RawContents[len(hd.RawContents)-1]))
 	fmt.Printf("%v\n", string(hd.DecryptedContents[125]))
-    fmt.Printf("%#v\n", len(hd.DecryptedContents[  125]))
+	fmt.Printf("%#v\n", len(hd.DecryptedContents[125]))
+	WriteContentsToFile("./testout.html", hd.DecryptedContents)
+}
+
+func WriteContentsToFile(path string, content []ContentRecord) (err error) {
+	file, err := os.Create(path)
+	check(err)
+	for ii := 0; ii < len(content); ii++ {
+		file.Write(content[ii])
+	}
+    return
 }
 
 //GetPDRecordInfoSectionList reads `count` items from `file`,
